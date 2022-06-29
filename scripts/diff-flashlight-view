@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+# compute diff and view it with delta
+
+SCRIPT_DIR=$(dirname $(realpath $0))
+REPO_DIR=$(dirname $SCRIPT_DIR)
+
+$SCRIPT_DIR/diff-flashlight $1
+cat $REPO_DIR/.diff | delta

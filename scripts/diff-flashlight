@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+# compute diff between $MODIFIED_DIR and $ORIGINAL_DIR and store it in 
+# $REPO_DIR/.diff
+
+REPO_DIR=$(dirname $(dirname $(realpath $0)))
+MODIFIED_DIR=$REPO_DIR/fl-minimal/flashlight
+ORIGINAL_DIR=$REPO_DIR/.flashlight
+VERSION=$1
+FILENAME=$2
+
+if [ -z "$VERSION" ]; then
+  VERSION=$(cat $REPO_DIR/.version)
+fi
+
+if [ -z "$FILENAME" ]; then
+  FILENAME=".diff"
+fi
+
+git -C "$ORIGINAL_DIR" pull || git clone https://github.com/flashlight/flashlight.git "$ORIGINAL_DIR"
+git -C "$ORIGINAL_DIR" checkout $VERSION
+diff -ur $ORIGINAL_DIR $MODIFIED_DIR > $REPO_DIR/$FILENAME

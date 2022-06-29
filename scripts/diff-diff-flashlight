@@ -1,0 +1,24 @@
+#!/usr/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+SCRIPT_DIR=$(dirname $(realpath $0))
+REPO_DIR=$(dirname $SCRIPT_DIR)
+VERSION=$1
+
+if [ -z "$VERSION" ]; then
+  echo "Usage: diff-diff-flashlight VERSION"
+  exit
+fi
+
+# compute diff between fl-minimal, and flashlight at $(cat $REPO_DIR/.version)
+$SCRIPT_DIR/diff-flashlight
+
+# compute diff between fl-minimal, and flashlight at $VERSION
+$SCRIPT_DIR/diff-flashlight $VERSION .diff-$VERSION
+
+# compute diff between .diff and .diff-$VERSION
+diff -ur $REPO_DIR/.diff $REPO_DIR/.diff-$VERSION > $REPO_DIR/.diff-diff
+
+cat $REPO_DIR/.diff-diff | delta
