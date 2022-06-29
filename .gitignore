@@ -1,0 +1,6 @@
+build/
+.flashlight/
+var/cache/apt/
+generate-seccomp/
+.config
+.diff*
