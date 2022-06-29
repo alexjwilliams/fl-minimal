@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+source $(dirname $0)/set-env-vars
+
+echo "removing the container image named "$PROJECT_NAME"..."
+
+podman rm $PROJECT_NAME >/dev/null 2>&1

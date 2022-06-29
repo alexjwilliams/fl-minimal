@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+source $(dirname $0)/set-env-vars
+
+podman exec --user root $PROJECT_NAME bash -c "cd /tmp/arrayfire/build && CTEST_OUTPUT_ON_FAILURE=1 make -j$(nproc) test"

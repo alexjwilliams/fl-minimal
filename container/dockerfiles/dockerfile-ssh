@@ -1,0 +1,39 @@
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+FROM dockerfile-base-before AS dockerfile-ssh
+
+ARG PROJECT_SSH_PORT
+
+# required for noninteractive install of tzdata, a dependency of openssh-server:
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get install -y openssh-server 
+
+# required for ssh on ubuntu:
+RUN mkdir /run/sshd
+
+# create a log file
+RUN touch /var/log/sshdlog
+
+# open port for ssh
+EXPOSE 2022
+
+# set up ssh
+# ADD --chown=ubuntu:ubuntu --chmod=660 files/home/ubuntu/.ssh/container-key.pub /home/ubuntu/.ssh/authorized_keys
+# RUN chown -R ubuntu:ubuntu /home/ubuntu/.ssh
+# RUN chmod -R 700 /home/ubuntu/.ssh
+ADD --chown=root:root --chmod=660 files/home/ubuntu/.ssh/container-key.pub /root/.ssh/authorized_keys
+RUN chown -R root:root /root/.ssh
+RUN chmod -R 700 /root/.ssh
+
+RUN sed -i "s/^\#Port 22/Port $PROJECT_SSH_PORT/g" /etc/ssh/sshd_config
+RUN sed -i 's/^\#ListenAddress 0\.0\.0\.0/ListenAddress 127\.0\.0\.1/g' /etc/ssh/sshd_config
+RUN sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+RUN sed -i 's/^\#PermitUserEnvironment no/PermitUserEnvironment yes/g' /etc/ssh/sshd_config
+
+# necessary on centos8 to allow ssh authentication
+RUN rm -rf /run/nologin
+
+ADD files/etc/ssh/start-container /etc/ssh/start-container
+RUN chmod +x /etc/ssh/start-container
+CMD ["/etc/ssh/start-container"]

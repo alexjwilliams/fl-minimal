@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+source $(dirname $0)/set-env-vars
+
+if [[ "$IS_RUNNING" != "0" ]]; then
+	# clean up previously running container
+	$SCRIPT_DIR/stop-ctr $PROJECT_NAME
+	$SCRIPT_DIR/remove-ctr $PROJECT_NAME
+
+	# create seccomp profile if it doesn't already exist
+	SECCOMP_DIR=$PROJECT_DIR_LOCAL_OR_REMOTE/container/generate-seccomp
+	git -C "$SECCOMP_DIR" pull || git clone https://github.com/generate-seccomp "$SECCOMP_DIR"
+	cd $SECCOMP_DIR && ./generate-seccomp
+
+	CTR_RUN_CMD_PREFIX="/usr/bin/podman run -dt"
+
+	# --userns=keep-id \
+	CTR_RUN_CMD_BASE_OPTIONS="--hostname $PROJECT_NAME \
+-v ${PROJECT_DIR_LOCAL_OR_REMOTE}/$PROJECT_NAME:/home/ubuntu/$PROJECT_NAME:Z \
+-v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/var/cache/apt:/var/cache/apt:Z \
+-v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/etc/apt/apt.conf.d/cache-packages:/etc/apt/apt.conf.d/cache-packages:Z \
+--name=${PROJECT_NAME} \
+--user=root \
+--net host \
+--security-opt seccomp=$PROJECT_DIR_LOCAL_OR_REMOTE/container/generate-seccomp/modified.json \
+-e XDG_RUNTIME_DIR"
+
+	CTR_RUN_CMD_SUFFIX="localhost/${PROJECT_NAME}"
+
+	CTR_RUN_CMD_GPU_OPTIONS="--security-opt=no-new-privileges \
+--hooks-dir=/usr/share/containers/oci/hooks.d/ \
+-v /usr/lib64/libnvidia-ml.so:/usr/local/nvidia/lib64/libnvidia-ml.so \
+--security-opt label=type:nvidia_container_t"
+
+	if [ -e ${PROJECT_DIR_LOCAL_OR_REMOTE}/.config/.pdbrc.py ]; then
+		CTR_RUN_CMD_PDBRC="-v ${PROJECT_DIR_LOCAL_OR_REMOTE}/.config/.pdbrc.py:/home/ubuntu/.pdbrc.py:Z"
+	fi
+
+	CTR_RUN_CMD=$CTR_RUN_CMD_PREFIX" "$CTR_RUN_CMD_BASE_OPTIONS" "$CTR_RUN_CMD_GPU_OPTIONS" "$CTR_RUN_CMD_PDBRC" "$CTR_RUN_CMD_SUFFIX
+
+	$CTR_RUN_CMD
+fi

@@ -1,0 +1,33 @@
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+FROM dockerfile-cuda AS dockerfile-cpp
+
+# install gcc and cmake
+# to install the tzdata package noninteractively
+ENV DEBIAN_FRONTEND=noninteractive 
+RUN apt-get install -y gcc cmake
+
+# install newer version of gcc
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test
+RUN apt-get update
+RUN apt-get install -y gcc-11 g++-11
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 10
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 10
+
+# build mold, a linker
+WORKDIR /tmp
+RUN git clone https://github.com/rui314/mold.git
+WORKDIR /tmp/mold
+RUN ./install-build-deps.sh
+RUN git checkout v1.2.1
+RUN make -j$(nproc) CXX=g++-11
+RUN make install
+WORKDIR /
+
+# install jq for build script
+RUN apt-get install -y jq
+
+# install debugger
+RUN apt-get install -y gdb

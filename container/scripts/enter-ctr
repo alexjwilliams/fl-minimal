@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+source $(dirname $0)/set-env-vars
+
+CD_PATH=$PROJECT_DIR_FOR_CTR
+
+podman exec -it $PROJECT_NAME bash -c \"cd $CD_PATH && $PROJECT_SHELL\"

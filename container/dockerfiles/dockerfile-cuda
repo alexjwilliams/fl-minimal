@@ -1,0 +1,28 @@
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+FROM dockerfile-ssh AS dockerfile-cuda
+
+# install nsight-compute and nsight-systems, diagnostic tools for cuda kernels
+RUN apt-get install -y nsight-compute-2021.3.0
+RUN apt-get install -y nsight-systems-2021.3.3
+
+# install cuda-gdb, a debugger
+RUN apt-get install -y nvidia-cuda-gdb
+
+# install cuda samples
+RUN apt-get install -y git
+WORKDIR /usr/local
+RUN git clone https://github.com/NVIDIA/cuda-samples.git
+# RUN chown -R ubuntu:ubuntu /usr/local/cuda-samples 
+WORKDIR /
+
+# Make all environment variables present when container is entered with 
+# "podman exec bash" or when container is accessed via ssh. Necessary for cuda 
+# to function when accessing the container via ssh.
+# RUN touch /home/ubuntu/.ssh/environment
+# RUN chown ubuntu:ubuntu /home/ubuntu/.ssh/environment
+# RUN printenv >> /home/ubuntu/.ssh/environment
+RUN touch /root/.ssh/environment
+RUN chown root:root /root/.ssh/environment
+RUN printenv >> /root/.ssh/environment

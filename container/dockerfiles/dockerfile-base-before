@@ -1,0 +1,36 @@
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+FROM docker.io/nvidia/cuda:11.6.0-cudnn8-devel-ubuntu20.04 AS dockerfile-base-before
+
+ARG PROJECT_NAME
+
+# enable caching of apt packages on host
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
+# update
+RUN apt-get update --fix-missing -y && apt-get upgrade -y
+
+# create a user
+# RUN adduser --disabled-password --gecos "" ubuntu
+
+# create a user with sudo privileges
+RUN adduser --disabled-password --gecos "" ubuntu
+RUN apt-get install -y sudo
+RUN adduser ubuntu sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+
+# configure user
+RUN chsh -s /bin/bash ubuntu
+USER ubuntu
+ENV HOME=/home/ubuntu
+ENV XDG_CONFIG_HOME=$HOME/.config
+RUN mkdir $XDG_CONFIG_HOME
+ENV PATH=/home/ubuntu/.local/bin:$PATH
+RUN echo "cd /home/ubuntu/$PROJECT_NAME" >> /home/ubuntu/.bash_profile
+RUN echo "if [ -f /home/ubuntu/.bashrc ]; then . /home/ubuntu/.bashrc; fi" >> /home/ubuntu/.bash_profile
+USER root
+
+# install system utilities
+RUN apt-get install -y wget strace

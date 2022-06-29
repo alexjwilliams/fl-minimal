@@ -1,0 +1,20 @@
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+FROM dockerfile-cpp AS dockerfile-python
+
+# install python
+RUN apt-get install -y python3.8
+
+# install pip
+RUN apt-get install -y python3-pip
+
+# USER ubuntu
+
+# install package for gdb syntax highlighting
+RUN pip3 install pygments
+
+# RUN printenv >> /home/ubuntu/.ssh/environment
+RUN printenv >> /root/.ssh/environment
+
+# USER root

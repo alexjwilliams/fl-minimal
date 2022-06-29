@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+source $(dirname $0)/set-env-vars
+
+# stop and remove the container
+$SCRIPT_DIR/stop-ctr
+$SCRIPT_DIR/remove-ctr
+
+# build a container image named $PROJECT_NAME
+echo "building a container named "$PROJECT_NAME"..."
+
+# create directory for package manager cache
+mkdir -p $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/var/cache/apt
+
+podman build --tag ${PROJECT_NAME} \
+	--build-arg PROJECT_NAME=$PROJECT_NAME \
+	--build-arg PROJECT_SSH_PORT=$PROJECT_SSH_PORT \
+  -v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/var/cache/apt:/var/cache/apt:Z \
+  -v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/etc/apt/apt.conf.d/cache-packages:/etc/apt/apt.conf.d/cache-packages:Z \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-base-before \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-ssh \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-cuda \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-cpp \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-python \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-dependencies \
+	-f $PROJECT_DIR_LOCAL_OR_REMOTE/container/dockerfiles/dockerfile-base-after \
+	$PROJECT_DIR_LOCAL_OR_REMOTE/container
+# --no-cache
