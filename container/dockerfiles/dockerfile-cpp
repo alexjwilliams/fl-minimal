@@ -26,6 +26,9 @@ RUN make -j$(nproc) CXX=g++-11
 RUN make install
 WORKDIR /
 
+# install ccache
+RUN apt-get install -y ccache
+
 # install jq for build script
 RUN apt-get install -y jq
 
