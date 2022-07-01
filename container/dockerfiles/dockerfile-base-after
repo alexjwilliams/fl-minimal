@@ -4,3 +4,5 @@
 FROM project-dependencies AS dockerfile-base-after
 
 # execute more tasks here
+# RUN chown -R ubuntu:ubuntu /home/ubuntu/.ccache
+# RUN chown -R ubuntu:ubuntu /home/ubuntu/.conda

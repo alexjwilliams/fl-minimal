@@ -15,22 +15,30 @@ RUN apt-get update --fix-missing -y && apt-get upgrade -y
 # RUN adduser --disabled-password --gecos "" ubuntu
 
 # create a user with sudo privileges
-RUN adduser --disabled-password --gecos "" ubuntu
-RUN apt-get install -y sudo
-RUN adduser ubuntu sudo
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
+# RUN adduser --disabled-password --gecos "" ubuntu
+# RUN apt-get install -y sudo
+# RUN adduser ubuntu sudo
+# RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # configure user
-RUN chsh -s /bin/bash ubuntu
-USER ubuntu
-ENV HOME=/home/ubuntu
+# RUN chsh -s /bin/bash ubuntu
+# USER ubuntu
+# ENV HOME=/home/ubuntu
+# ENV XDG_CONFIG_HOME=$HOME/.config
+# RUN mkdir $XDG_CONFIG_HOME
+# ENV PATH=/home/ubuntu/.local/bin:$PATH
+# RUN echo "cd /home/ubuntu/$PROJECT_NAME" >> /home/ubuntu/.bash_profile
+# RUN echo "if [ -f /home/ubuntu/.bashrc ]; then . /home/ubuntu/.bashrc; fi" >> /home/ubuntu/.bash_profile
+# USER root
+
+# configure root user
+RUN chsh -s /bin/bash root
+ENV HOME=/root
 ENV XDG_CONFIG_HOME=$HOME/.config
 RUN mkdir $XDG_CONFIG_HOME
-ENV PATH=/home/ubuntu/.local/bin:$PATH
-RUN echo "cd /home/ubuntu/$PROJECT_NAME" >> /home/ubuntu/.bash_profile
-RUN echo "if [ -f /home/ubuntu/.bashrc ]; then . /home/ubuntu/.bashrc; fi" >> /home/ubuntu/.bash_profile
-USER root
+ENV PATH=/root/.local/bin:$PATH
+RUN echo "cd /root/$PROJECT_NAME" >> /root/.bash_profile
+RUN echo "if [ -f /root/.bashrc ]; then . /root/.bashrc; fi" >> /root/.bash_profile
 
 # install system utilities
 RUN apt-get install -y wget strace

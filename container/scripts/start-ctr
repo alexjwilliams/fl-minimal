@@ -18,12 +18,12 @@ if [[ "$IS_RUNNING" != "0" ]]; then
 	CTR_RUN_CMD_PREFIX="/usr/bin/podman run -dt"
 
 	# --userns=keep-id \
+  # --user=root \
 	CTR_RUN_CMD_BASE_OPTIONS="--hostname $PROJECT_NAME \
--v ${PROJECT_DIR_LOCAL_OR_REMOTE}/$PROJECT_NAME:/home/ubuntu/$PROJECT_NAME:Z \
+-v ${PROJECT_DIR_LOCAL_OR_REMOTE}/$PROJECT_NAME:/root/$PROJECT_NAME:Z \
 -v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/var/cache/apt:/var/cache/apt:Z \
 -v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/etc/apt/apt.conf.d/cache-packages:/etc/apt/apt.conf.d/cache-packages:Z \
 --name=${PROJECT_NAME} \
---user=root \
 --net host \
 --security-opt seccomp=$PROJECT_DIR_LOCAL_OR_REMOTE/container/generate-seccomp/modified.json \
 -e XDG_RUNTIME_DIR"
@@ -36,7 +36,7 @@ if [[ "$IS_RUNNING" != "0" ]]; then
 --security-opt label=type:nvidia_container_t"
 
 	if [ -e ${PROJECT_DIR_LOCAL_OR_REMOTE}/.config/.pdbrc.py ]; then
-		CTR_RUN_CMD_PDBRC="-v ${PROJECT_DIR_LOCAL_OR_REMOTE}/.config/.pdbrc.py:/home/ubuntu/.pdbrc.py:Z"
+		CTR_RUN_CMD_PDBRC="-v ${PROJECT_DIR_LOCAL_OR_REMOTE}/.config/.pdbrc.py:/root/.pdbrc.py:Z"
 	fi
 
 	CTR_RUN_CMD=$CTR_RUN_CMD_PREFIX" "$CTR_RUN_CMD_BASE_OPTIONS" "$CTR_RUN_CMD_GPU_OPTIONS" "$CTR_RUN_CMD_PDBRC" "$CTR_RUN_CMD_SUFFIX
