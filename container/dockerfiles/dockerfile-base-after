@@ -1,7 +1,7 @@
 # Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
 # SPDX-License-Identifier: LicenseRef-MIT-Alex
 
-FROM project-dependencies AS dockerfile-base-after
+FROM dockerfile-dependencies AS dockerfile-base-after
 
 # execute more tasks here
 # RUN chown -R ubuntu:ubuntu /home/ubuntu/.ccache

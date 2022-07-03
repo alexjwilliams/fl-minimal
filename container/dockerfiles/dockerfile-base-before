@@ -34,6 +34,7 @@ RUN apt-get update --fix-missing -y && apt-get upgrade -y
 # configure root user
 RUN chsh -s /bin/bash root
 ENV HOME=/root
+ENV GIT_DISCOVERY_ACROSS_FILESYSTEM=1
 ENV XDG_CONFIG_HOME=$HOME/.config
 RUN mkdir $XDG_CONFIG_HOME
 ENV PATH=/root/.local/bin:$PATH

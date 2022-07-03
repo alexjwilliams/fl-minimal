@@ -4,7 +4,7 @@
 # add docker commands to this file to install project specific dependencies
 # in the container
 
-FROM dockerfile-python as project-dependencies
+FROM dockerfile-python as dockerfile-dependencies
 
 # build arrayfire
 # see the following for help with building arrayfire:
