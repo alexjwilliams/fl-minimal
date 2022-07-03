@@ -12,7 +12,7 @@ if [[ "$IS_RUNNING" != "0" ]]; then
 
 	# create seccomp profile if it doesn't already exist
 	SECCOMP_DIR=$PROJECT_DIR_LOCAL_OR_REMOTE/container/generate-seccomp
-	git -C "$SECCOMP_DIR" pull || git clone https://github.com/generate-seccomp "$SECCOMP_DIR"
+	git -C "$SECCOMP_DIR" pull || git clone https://github.com/alexjwilliams/generate-seccomp "$SECCOMP_DIR"
 	cd $SECCOMP_DIR && ./generate-seccomp
 
 	CTR_RUN_CMD_PREFIX="/usr/bin/podman run -dt"
@@ -20,7 +20,7 @@ if [[ "$IS_RUNNING" != "0" ]]; then
 	# --userns=keep-id \
   # --user=root \
 	CTR_RUN_CMD_BASE_OPTIONS="--hostname $PROJECT_NAME \
--v ${PROJECT_DIR_LOCAL_OR_REMOTE}/$PROJECT_NAME:/root/$PROJECT_NAME:Z \
+-v ${PROJECT_DIR_LOCAL_OR_REMOTE}:/root/$PROJECT_NAME:Z \
 -v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/var/cache/apt:/var/cache/apt:Z \
 -v $PROJECT_DIR_LOCAL_OR_REMOTE/container/files/etc/apt/apt.conf.d/cache-packages:/etc/apt/apt.conf.d/cache-packages:Z \
 --name=${PROJECT_NAME} \
