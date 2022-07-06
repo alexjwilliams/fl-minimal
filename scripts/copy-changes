@@ -82,7 +82,7 @@ for dir in directories_to_copy:
             "cp",
             "-r",
             os.path.join(flashlight_dir_original, dir),
-            flashlight_dir_fl_minimal + "/",
+            os.path.join(flashlight_dir_fl_minimal, os.path.dirname(dir), ""),
         ]
     )
 for file in files_to_copy:
@@ -97,6 +97,6 @@ for file in files_to_copy:
 
 # remove dirs and files from destination
 for dir in directories_to_remove_after_copy:
-    subprocess.run(["rm", "-r", dir])
-for file in files_to_copy:
-    subprocess.run(["rm", "-r", file])
+    subprocess.run(["rm", "-r", os.path.join(flashlight_dir_fl_minimal, dir)])
+for file in files_to_remove_after_copy:
+    subprocess.run(["rm", os.path.join(flashlight_dir_fl_minimal, file)])
