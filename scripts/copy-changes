@@ -1,0 +1,102 @@
+#!/usr/bin/python3
+
+# Copyright (c) 2022 Alexander Williams <alexwilliams@protonmail.ch>
+# SPDX-License-Identifier: LicenseRef-MIT-Alex
+
+import os
+import sys
+import subprocess
+
+try:
+    version = sys.argv[1]
+except IndexError:
+    exit("Usage: copy-changes <commit hash or tag>")
+
+repo_dir = os.path.dirname(os.path.dirname(__file__))
+flashlight_dir_fl_minimal = os.path.join(repo_dir, "fl-minimal/flashlight")
+flashlight_dir_original = os.path.join(repo_dir, ".flashlight")
+
+directories_to_copy = ["flashlight/fl", "cmake"]
+files_to_copy = ["CMakeLists.txt"]
+
+files_to_remove_after_copy = [
+    "cmake/BuildFlashlightText.cmake",
+    "cmake/HalideUtils.cmake",
+    "flashlight/fl/common/CppBackports.h",
+    "flashlight/fl/common/DynamicBenchmark.cpp",
+    "flashlight/fl/common/DynamicBenchmark.h",
+    "flashlight/fl/common/Histogram.cpp",
+    "flashlight/fl/common/Histogram.h",
+    "flashlight/fl/common/Logging.cpp",
+    "flashlight/fl/common/Logging.h",
+    "flashlight/fl/nn/DistributedUtils.cpp",
+    "flashlight/fl/nn/DistributedUtils.h",
+    "flashlight/fl/optim/AMSgradOptimizer.cpp",
+    "flashlight/fl/optim/AMSgradOptimizer.h",
+    "flashlight/fl/optim/AdadeltaOptimizer.cpp",
+    "flashlight/fl/optim/AdadeltaOptimizer.h",
+    "flashlight/fl/optim/AdagradOptimizer.cpp",
+    "flashlight/fl/optim/AdagradOptimizer.h",
+    "flashlight/fl/optim/AdamOptimizer.cpp",
+    "flashlight/fl/optim/AdamOptimizer.h",
+    "flashlight/fl/optim/NAGOptimizer.cpp",
+    "flashlight/fl/optim/NAGOptimizer.h",
+    "flashlight/fl/optim/NovogradOptimizer.cpp",
+    "flashlight/fl/optim/NovogradOptimizer.h",
+    "flashlight/fl/optim/RMSPropOptimizer.cpp",
+    "flashlight/fl/optim/RMSPropOptimizer.h",
+    "flashlight/fl/test/common/DynamicBenchmarkTest.cpp",
+    "flashlight/fl/test/common/HistogramTest.cpp",
+]
+
+directories_to_remove_after_copy = [
+    "flashlight/fl/contrib/",
+    "flashlight/fl/distributed/",
+    "flashlight/fl/meter/",
+    "flashlight/fl/tensor/backend/stub/",
+    "flashlight/fl/test/contrib/",
+    "flashlight/fl/test/distributed/",
+    "flashlight/fl/test/meter/",
+]
+
+# update the flashlight repo
+subprocess.run(
+    [
+        "git -C "
+        + flashlight_dir_original
+        + " pull || git clone https://github.com/flashlight/flashlight.git "
+        + flashlight_dir_original
+    ],
+    shell=True,
+)
+
+# checkout version
+subprocess.run(
+    ["git -C " + flashlight_dir_original + " checkout " + version], shell=True
+)
+
+# copy dirs and files from flashlight_dir_original to flashlight_dir_fl_minimal
+for dir in directories_to_copy:
+    subprocess.run(
+        [
+            "cp",
+            "-r",
+            os.path.join(flashlight_dir_original, dir),
+            flashlight_dir_fl_minimal + "/",
+        ]
+    )
+for file in files_to_copy:
+    subprocess.run(
+        [
+            "cp",
+            "-r",
+            os.path.join(flashlight_dir_original, file),
+            os.path.join(flashlight_dir_fl_minimal, file),
+        ]
+    )
+
+# remove dirs and files from destination
+for dir in directories_to_remove_after_copy:
+    subprocess.run(["rm", "-r", dir])
+for file in files_to_copy:
+    subprocess.run(["rm", "-r", file])
