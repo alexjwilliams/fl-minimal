@@ -22,4 +22,4 @@ fi
 
 git -C "$ORIGINAL_DIR" pull || git clone https://github.com/flashlight/flashlight.git "$ORIGINAL_DIR"
 git -C "$ORIGINAL_DIR" checkout $VERSION
-diff -ur $ORIGINAL_DIR $MODIFIED_DIR > $REPO_DIR/$FILENAME
+diff -ur $MODIFIED_DIR $ORIGINAL_DIR > $REPO_DIR/$FILENAME
