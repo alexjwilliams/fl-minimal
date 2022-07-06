@@ -47,11 +47,12 @@ files_to_remove_after_copy = [
     "flashlight/fl/optim/RMSPropOptimizer.h",
     "flashlight/fl/test/common/DynamicBenchmarkTest.cpp",
     "flashlight/fl/test/common/HistogramTest.cpp",
+    "flashlight/fl/test/common/LoggingTest.cpp",
 ]
-
 directories_to_remove_after_copy = [
     "flashlight/fl/contrib/",
     "flashlight/fl/distributed/",
+    "flashlight/fl/examples/",
     "flashlight/fl/meter/",
     "flashlight/fl/tensor/backend/stub/",
     "flashlight/fl/test/contrib/",
@@ -59,8 +60,16 @@ directories_to_remove_after_copy = [
     "flashlight/fl/test/meter/",
 ]
 
+
+def print_command(process):
+    if len(process.args) == 1:
+        print(process.args[0])
+    else:
+        print(" ".join(process.args))
+
+
 # update the flashlight repo
-subprocess.run(
+process = subprocess.run(
     [
         "git -C "
         + flashlight_dir_original
@@ -69,15 +78,17 @@ subprocess.run(
     ],
     shell=True,
 )
+print_command(process)
 
 # checkout version
-subprocess.run(
+process = subprocess.run(
     ["git -C " + flashlight_dir_original + " checkout " + version], shell=True
 )
+print_command(process)
 
 # copy dirs and files from flashlight_dir_original to flashlight_dir_fl_minimal
 for dir in directories_to_copy:
-    subprocess.run(
+    process = subprocess.run(
         [
             "cp",
             "-r",
@@ -85,18 +96,21 @@ for dir in directories_to_copy:
             os.path.join(flashlight_dir_fl_minimal, os.path.dirname(dir), ""),
         ]
     )
+    print_command(process)
 for file in files_to_copy:
-    subprocess.run(
+    process = subprocess.run(
         [
             "cp",
-            "-r",
             os.path.join(flashlight_dir_original, file),
             os.path.join(flashlight_dir_fl_minimal, file),
         ]
     )
+    print_command(process)
 
 # remove dirs and files from destination
 for dir in directories_to_remove_after_copy:
-    subprocess.run(["rm", "-r", os.path.join(flashlight_dir_fl_minimal, dir)])
+    process = subprocess.run(["rm", "-r", os.path.join(flashlight_dir_fl_minimal, dir)])
+    print_command(process)
 for file in files_to_remove_after_copy:
-    subprocess.run(["rm", os.path.join(flashlight_dir_fl_minimal, file)])
+    process = subprocess.run(["rm", os.path.join(flashlight_dir_fl_minimal, file)])
+    print_command(process)
