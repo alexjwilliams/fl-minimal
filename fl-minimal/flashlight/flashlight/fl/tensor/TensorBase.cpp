@@ -248,6 +248,10 @@ Shape Tensor::strides() const {
   return impl_->strides();
 }
 
+const runtime::Stream& Tensor::stream() const {
+  return impl_->stream();
+}
+
 void Tensor::setContext(void* context) {
   impl_->setContext(context);
 }
@@ -600,6 +604,7 @@ FL_BINARY_OP_DEF(>=, greaterThanEqual);
 FL_BINARY_OP_DEF(||, logicalOr);
 FL_BINARY_OP_DEF(&&, logicalAnd);
 FL_BINARY_OP_DEF(%, mod);
+FL_BINARY_OP_DEF(&, bitwiseAnd);
 FL_BINARY_OP_DEF(|, bitwiseOr);
 FL_BINARY_OP_DEF(^, bitwiseXor);
 FL_BINARY_OP_DEF(<<, lShift);
@@ -803,6 +808,11 @@ bool allClose(
   }
   return fl::amax(fl::abs(a - b)).astype(dtype::f64).scalar<double>() <
       absTolerance;
+}
+
+bool isInvalidArray(const Tensor& tensor) {
+  return fl::any(fl::isnan(tensor)).asScalar<bool>() ||
+      fl::any(fl::isinf(tensor)).asScalar<bool>();
 }
 
 namespace detail {

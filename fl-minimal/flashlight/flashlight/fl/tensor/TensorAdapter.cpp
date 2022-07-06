@@ -15,13 +15,15 @@
 #include "flashlight/fl/tensor/TensorBase.h"
 
 #if FL_USE_ARRAYFIRE
-#include "flashlight/fl/tensor/backend/af/ArrayFireTensor.h"
+  #include "flashlight/fl/tensor/backend/af/ArrayFireTensor.h"
 #endif
 
+#if FL_USE_ARRAYFIRE
 /**
  * The default tensor type in Flashlight. Currently ArrayFire.
  */
 using DefaultTensorType_t = fl::ArrayFireTensor;
+#endif
 
 /**
  * The compile time value which will be true if the default backend is

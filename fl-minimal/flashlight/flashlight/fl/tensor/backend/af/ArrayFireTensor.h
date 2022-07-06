@@ -9,28 +9,14 @@
 
 #include <af/algorithm.h>
 #include <af/array.h>
-#include <af/exception.h>
 #include <af/statistics.h>
 
 #include <variant>
 
+#include "flashlight/fl/runtime/Stream.h"
 #include "flashlight/fl/tensor/Index.h"
 #include "flashlight/fl/tensor/Shape.h"
 #include "flashlight/fl/tensor/TensorAdapter.h"
-
-/*
- * TODO: this is duplicative - remove this from flashlight/fl/common/Utils.h
- * once the rest of the proj depends on headers here.
- */
-#define AF_CHECK(fn)                                                          \
-  do {                                                                        \
-    af_err __err = fn;                                                        \
-    if (__err == AF_SUCCESS) {                                                \
-      break;                                                                  \
-    }                                                                         \
-    throw af::exception(                                                      \
-        "ArrayFire error: ", __PRETTY_FUNCTION__, __FILE__, __LINE__, __err); \
-  } while (0)
 
 namespace fl {
 
@@ -199,6 +185,7 @@ class ArrayFireTensor : public TensorAdapterBase {
   bool isLocked() override;
   bool isContiguous() override;
   Shape strides() override;
+  const runtime::Stream& stream() const override;
   Tensor astype(const dtype type) override;
   Tensor index(const std::vector<Index>& indices) override;
   Tensor flatten() const override;

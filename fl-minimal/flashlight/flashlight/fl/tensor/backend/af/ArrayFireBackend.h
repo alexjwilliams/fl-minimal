@@ -7,7 +7,13 @@
 
 #pragma once
 
+#include <mutex>
+#include <unordered_map>
+
+#include "flashlight/fl/tensor/Stream.h"
 #include "flashlight/fl/tensor/TensorBackend.h"
+
+#include <af/array.h>
 
 namespace fl {
 
@@ -22,6 +28,27 @@ namespace fl {
 class ArrayFireBackend : public TensorBackend {
   // TODO: consolidate the ArrayFire memory manager here so its global state can
   // be stored/we can reduce the number of singletons.
+  std::once_flag memoryInitFlag;
+
+  // This is a revolving door stream - each time ArrayFireBackend::getStream()
+  // is called, a new Stream is created with the stream from
+  // afcu::getStream() (or afcl::getStream() when added back), which corresponds
+  // correctly to the stream from the currently-active device.
+  //
+  // This will eventually be modified to use a stream stored per device.
+  std::unique_ptr<Stream> stream_;
+
+  // This helps ensure we are using native device id in public methods.
+  std::unordered_map<int, int> nativeIdToId_;
+  std::unordered_map<int, int> idToNativeId_;
+
+  // keep track of the individual active stream on each ArrayFire device
+  // NOTE using a `shared_ptr` to allow its capture in setActive callback;
+  // see constructor for details.
+  std::shared_ptr<
+      std::unordered_map<int, std::shared_ptr<const runtime::Stream>>>
+      afIdToStream_{std::make_shared<
+          std::unordered_map<int, std::shared_ptr<const runtime::Stream>>>()};
 
   // Intentionally private. Only one instance should exist/it should be accessed
   // via getInstance().
@@ -40,12 +67,26 @@ class ArrayFireBackend : public TensorBackend {
 
   /* -------------------------- Compute Functions -------------------------- */
   void sync() override;
-  void sync(const int deviceId) override;
+  void sync(const int nativeDeviceId) override;
   void eval(const Tensor& tensor) override;
   int getDevice() override;
-  void setDevice(const int deviceId) override;
+  void setDevice(const int nativeDeviceId) override;
   int getDeviceCount() override;
+  const Stream& getStream() override;
+
+  /**
+   * Return the stream from which the given array was created.
+   *
+   * @return an immutable reference to the stream from which `arr` was created.
+   */
+  const runtime::Stream& getStreamOfArray(const af::array& arr);
   bool supportsDataType(const fl::dtype& dtype) const override;
+  // Memory management
+  void getMemMgrInfo(const char* msg, const int nativeDeviceId, std::ostream* ostream)
+      override;
+  void setMemMgrLogStream(std::ostream* stream) override;
+  void setMemMgrLoggingEnabled(const bool enabled) override;
+  void setMemMgrFlushInterval(const size_t interval) override;
 
   /* -------------------------- Rand Functions -------------------------- */
   void setSeed(const int seed) override;
@@ -173,6 +214,7 @@ class ArrayFireBackend : public TensorBackend {
   FL_AF_BINARY_OP_DECL(logicalOr);
   FL_AF_BINARY_OP_DECL(logicalAnd);
   FL_AF_BINARY_OP_DECL(mod);
+  FL_AF_BINARY_OP_DECL(bitwiseAnd);
   FL_AF_BINARY_OP_DECL(bitwiseOr);
   FL_AF_BINARY_OP_DECL(bitwiseXor);
   FL_AF_BINARY_OP_DECL(lShift);

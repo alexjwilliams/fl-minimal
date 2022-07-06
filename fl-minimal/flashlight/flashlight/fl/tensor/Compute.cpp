@@ -12,11 +12,6 @@
 #include "flashlight/fl/tensor/TensorBackend.h"
 #include "flashlight/fl/tensor/TensorBase.h"
 
-// TODO: remove me once no more `af::eval` calls
-#include <af/array.h>
-#include <af/device.h>
-#include "flashlight/fl/tensor/backend/af/ArrayFireTensor.h"
-
 namespace fl {
 
 void sync() {
@@ -31,11 +26,6 @@ void eval(Tensor& tensor) {
   Tensor().backend().eval(tensor);
 }
 
-// TODO:fl::Tensor remove once no more `fl::eval` calls that take `af::array`s
-void eval(af::array& array) {
-  af::eval(array);
-}
-
 int getDevice() {
   return Tensor().backend().getDevice();
 }
@@ -47,5 +37,28 @@ void setDevice(const int deviceId) {
 int getDeviceCount() {
   return Tensor().backend().getDeviceCount();
 }
+
+namespace detail {
+
+void getMemMgrInfo(
+    const char* msg,
+    const int deviceId,
+    std::ostream* ostream /* = &std::cout */) {
+  Tensor().backend().getMemMgrInfo(msg, deviceId, ostream);
+}
+
+void setMemMgrLogStream(std::ostream* stream) {
+  Tensor().backend().setMemMgrLogStream(stream);
+}
+
+void setMemMgrLoggingEnabled(const bool enabled) {
+  Tensor().backend().setMemMgrLoggingEnabled(enabled);
+}
+
+void setMemMgrFlushInterval(const size_t interval) {
+  Tensor().backend().setMemMgrFlushInterval(interval);
+}
+
+} // namespace detail
 
 } // namespace fl
