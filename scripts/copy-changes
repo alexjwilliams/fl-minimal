@@ -114,3 +114,10 @@ for dir in directories_to_remove_after_copy:
 for file in files_to_remove_after_copy:
     process = subprocess.run(["rm", os.path.join(flashlight_dir_fl_minimal, file)])
     print_command(process)
+
+# update .version
+process = subprocess.run(
+    ["echo " + "'" + version + "'" + " > " + os.path.join(repo_dir, ".version")],
+    shell=True,
+)
+print_command(process)
