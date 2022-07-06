@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "flashlight/fl/autograd/Functions.h"
+#include "flashlight/fl/tensor/Index.h"
 
 namespace fl {
 
@@ -76,20 +77,20 @@ AdaptiveSoftMaxLoss::AdaptiveSoftMaxLoss(
 
 Variable AdaptiveSoftMaxLoss::cast(
     const Variable& input,
-    const af::dim4& outDims,
-    const af::array& indices) {
+    const Shape& outDims,
+    const Tensor& indices) {
   if (input.elements() != indices.elements()) {
     throw std::invalid_argument("AdaptiveSoftMaxLoss: input, indices mismatch");
   }
-  af::array output = af::constant(0, outDims, input.type());
-  output(indices) = af::flat(input.array());
-  auto inputDims = input.dims();
+  Tensor output = fl::full(outDims, 0, input.type());
+  output(indices) = input.tensor().flatten();
+  auto inputDims = input.shape();
 
   auto gradFunc = [indices, inputDims](
                       std::vector<Variable>& inputs,
                       const Variable& grad_output) {
-    af::array gradArray = grad_output.array()(indices);
-    auto grad = Variable(af::moddims(gradArray, inputDims), false);
+    Tensor gradTensor = grad_output.tensor()(indices);
+    auto grad = Variable(fl::reshape(gradTensor, inputDims), false);
     inputs[0].addGrad(grad);
   };
   return Variable(output, {input.withoutData()}, gradFunc);
@@ -98,42 +99,53 @@ Variable AdaptiveSoftMaxLoss::cast(
 Variable AdaptiveSoftMaxLoss::forward(
     const Variable& inputs,
     const Variable& targets) {
-  // inputs: N x T x B x 1
-  // targets: T x B x 1 x 1
-  if (inputs.dims(1) != targets.dims(0)) {
+  // inputs: N x T x B
+  // targets: T x B
+  if (inputs.ndim() != 3) {
+    throw std::invalid_argument(
+        "AdaptiveSoftMaxLoss::forward expects input tensor with "
+        "3 dimensions in N x T x B ordering.");
+  }
+  if (targets.ndim() != 2) {
+    throw std::invalid_argument(
+        "AdaptiveSoftMaxLoss::forward expects target tensor with "
+        "2 dimensions in T x B ordering.");
+  }
+  if (inputs.dim(1) != targets.dim(0)) {
     throw std::invalid_argument("AdaptiveSoftMaxLoss: length mismatch");
-  } else if (inputs.dims(2) != targets.dims(1)) {
+  } else if (inputs.dim(2) != targets.dim(1)) {
     throw std::invalid_argument("AdaptiveSoftMaxLoss: batch size mismatch");
   }
 
-  auto N = inputs.dims(0);
-  auto T = inputs.dims(1);
-  auto B = inputs.dims(2);
+  auto N = inputs.dim(0);
+  auto T = inputs.dim(1);
+  auto B = inputs.dim(2);
   auto cutoff = activation_->getCutoff();
 
-  auto input = moddims(inputs, af::dim4(N, T * B));
-  auto target = moddims(targets, af::dim4(T * B));
+  auto input = moddims(inputs, {N, T * B});
+  auto target = moddims(targets, {T * B});
 
   auto headOutput = matmul(params_[0], input);
-  auto headTarget = Variable(target.array(), false) * (target < cutoff[0]);
-  auto res = Variable(af::constant(0, T * B), true);
+  auto headTarget = Variable(target.tensor(), false) * (target < cutoff[0]);
+  // TODO: check the type of res
+  auto res = Variable(fl::full({T * B}, 0, fl::dtype::f32), true);
 
   // Tail forwawrd
   for (int i = 0; i < cutoff.size() - 1; i++) {
     auto mask = (target >= cutoff[i]) && (target < cutoff[i + 1]);
-    if (!af::anyTrue<bool>(mask.array())) {
+    if (!fl::any(mask.tensor()).scalar<char>()) {
       continue;
     }
 
-    auto indicesArray = af::where(mask.array());
-    headTarget = headTarget + (mask * (cutoff[0] + i)).as(headTarget.type());
+    auto indicesArray = fl::nonzero(mask.tensor());
+    headTarget = headTarget + (mask * (cutoff[0] + i)).astype(headTarget.type());
     auto tailTarget = target(indicesArray) - cutoff[i];
     auto selectedInput = embedding(Variable(indicesArray, false), input);
     auto tailOutput = matmul(params_[1 + i * 2], selectedInput);
     tailOutput = matmul(params_[2 + i * 2], tailOutput);
     auto localLoss = categoricalCrossEntropy(
         logSoftmax(tailOutput, 0), tailTarget, ReduceMode::NONE, ignoreIndex_);
-    res = res + cast(localLoss, res.dims(), indicesArray);
+    res = res + cast(localLoss, res.shape(), indicesArray);
   }
 
   // Head forward
@@ -146,11 +158,12 @@ Variable AdaptiveSoftMaxLoss::forward(
 
   // Reduce
   if (reduction_ == ReduceMode::NONE) {
-    return moddims(res, targets.dims());
+    return moddims(res, targets.shape());
   }
   res = sum(res, {0});
   if (reduction_ == ReduceMode::MEAN) {
-    auto denominator = af::count<int>(target.array() != ignoreIndex_);
+    auto denominator =
+        fl::countNonzero(target.tensor() != ignoreIndex_).scalar<unsigned>();
     res = res / denominator;
   }
   return res;

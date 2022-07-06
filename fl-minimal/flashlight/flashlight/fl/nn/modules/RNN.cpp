@@ -7,6 +7,7 @@
 
 #include "flashlight/fl/nn/modules/RNN.h"
 
+#include <cmath>
 #include <stdexcept>
 
 #include "flashlight/fl/autograd/Functions.h"
@@ -36,7 +37,7 @@ void RNN::initialize() {
       inputSize_, hiddenSize_, numLayers_, mode_, bidirectional_);
 
   double stdv = std::sqrt(1.0 / (double)hiddenSize_);
-  auto w = uniform({n_params}, -stdv, stdv, f32, true);
+  auto w = uniform({n_params}, -stdv, stdv, fl::dtype::f32, true);
   params_ = {w};
 }
 
@@ -52,9 +53,9 @@ std::vector<Variable> RNN::forward(const std::vector<Variable>& inputs) {
   float dropProb = train_ ? dropProb_ : 0.0;
   auto rnnRes =
       rnn(input,
-          hiddenState.as(input.type()),
-          cellState.as(input.type()),
-          params_[0].as(input.type()),
+          hiddenState.astype(input.type()),
+          cellState.astype(input.type()),
+          params_[0].astype(input.type()),
           hiddenSize_,
           numLayers_,
           mode_,

@@ -7,6 +7,8 @@
 
 #include "flashlight/fl/nn/modules/Embedding.h"
 
+#include <cmath>
+
 #include "flashlight/fl/autograd/Functions.h"
 #include "flashlight/fl/nn/Init.h"
 
@@ -18,12 +20,12 @@ Embedding::Embedding(int embeddingDim, int numEmbeddings)
 }
 
 Embedding::Embedding(const Variable& w)
-    : UnaryModule({w}), embeddingDim_(w.dims(0)), numEmbeddings_(w.dims(1)) {}
+    : UnaryModule({w}), embeddingDim_(w.dim(0)), numEmbeddings_(w.dim(1)) {}
 
 void Embedding::initialize() {
   double stdv = std::sqrt(1.0 / (double)embeddingDim_);
   auto embeddings =
-      uniform(embeddingDim_, numEmbeddings_, -stdv, stdv, af::dtype::f32, true);
+      uniform(embeddingDim_, numEmbeddings_, -stdv, stdv, fl::dtype::f32, true);
   params_ = {embeddings};
 }
 

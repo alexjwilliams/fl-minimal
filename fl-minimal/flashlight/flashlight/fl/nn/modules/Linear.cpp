@@ -5,9 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#include <stdexcept>
-
 #include "flashlight/fl/nn/modules/Linear.h"
+
+#include <cmath>
+#include <stdexcept>
 
 #include "flashlight/fl/autograd/Functions.h"
 #include "flashlight/fl/nn/Init.h"
@@ -21,11 +22,11 @@ Linear::Linear(int input_size, int output_size, bool bias)
 }
 
 Linear::Linear(const Variable& w)
-    : UnaryModule({w}), nIn_(w.dims(1)), nOut_(w.dims(0)), bias_(false) {}
+    : UnaryModule({w}), nIn_(w.dim(1)), nOut_(w.dim(0)), bias_(false) {}
 
 Linear::Linear(const Variable& w, const Variable& b)
-    : UnaryModule({w, b}), nIn_(w.dims(1)), nOut_(w.dims(0)), bias_(true) {
-  if (b.dims(0) != w.dims(0)) {
+    : UnaryModule({w, b}), nIn_(w.dim(1)), nOut_(w.dim(0)), bias_(true) {
+  if (b.dim(0) != w.dim(0)) {
     throw std::invalid_argument(
         "dimension mismatch between Linear weight and bias");
   }
@@ -34,18 +35,19 @@ Linear::Linear(const Variable& w, const Variable& b)
 Variable Linear::forward(const Variable& input) {
   if (bias_) {
     return linear(
-        input, params_[0].as(input.type()), params_[1].as(input.type()));
+        input, params_[0].astype(input.type()), params_[1].astype(input.type()));
   }
-  return linear(input, params_[0].as(input.type()));
+  return linear(input, params_[0].astype(input.type()));
 }
 
 void Linear::initialize() {
   int fanIn = nIn_;
   auto w = Variable(
-      af::kaimingUniform(af::dim4(nOut_, nIn_), fanIn, af::dtype::f32), true);
+      detail::kaimingUniform(Shape({nOut_, nIn_}), fanIn, fl::dtype::f32),
+      true);
   if (bias_) {
     double bound = std::sqrt(1.0 / fanIn);
-    auto b = uniform(af::dim4(nOut_), -bound, bound, af::dtype::f32, true);
+    auto b = uniform(Shape({nOut_}), -bound, bound, fl::dtype::f32, true);
     params_ = {w, b};
   } else {
     params_ = {w};
