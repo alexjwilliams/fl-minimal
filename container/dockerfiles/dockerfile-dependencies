@@ -24,12 +24,12 @@ RUN echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
 ENV PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
 
 # install intel mkl
-WORKDIR /tmp
-RUN wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-RUN apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-RUN echo "deb https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list
-RUN add-apt-repository "deb https://apt.repos.intel.com/oneapi all main" 
-RUN apt update -y && apt install -y intel-basekit
+# WORKDIR /tmp
+# RUN wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+# RUN apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+# RUN echo "deb https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list
+# RUN add-apt-repository "deb https://apt.repos.intel.com/oneapi all main" 
+# RUN apt update -y && apt install -y intel-basekit
 
 # build arrayfire
 WORKDIR /tmp
@@ -46,8 +46,8 @@ RUN git submodule sync
 RUN git submodule update --init --recursive --jobs 0
 RUN mkdir build
 WORKDIR /tmp/arrayfire/build
-RUN . /opt/intel/oneapi/setvars.sh && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/opt/arrayfire-3 \
+# RUN . /opt/intel/oneapi/setvars.sh && \
+RUN    cmake .. -DCMAKE_INSTALL_PREFIX=/opt/arrayfire-3 \
              -DCMAKE_BUILD_TYPE=Release \
              -DAF_BUILD_CPU=ON \
              -DAF_BUILD_CUDA=ON \
