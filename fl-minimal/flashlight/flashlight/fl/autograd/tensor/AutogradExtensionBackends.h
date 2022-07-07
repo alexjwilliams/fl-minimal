@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT-style license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+#pragma once
+
+#include "flashlight/fl/tensor/TensorBackend.h"
+#include "flashlight/fl/tensor/TensorExtension.h"
+
+/*
+ * Conditionally include autograd extensions
+ */
+#if FL_USE_CUDNN
+  #include "flashlight/fl/autograd/tensor/backend/cudnn/CudnnAutogradExtension.h"
+#endif // FL_USE_CUDNN
+
+namespace fl {
+
+/****************** Autograd Extension Registration ******************/
+
+// TODO{fl::Tensor} -- improve macros based on compute envs
+#if FL_USE_CUDNN
+  #if FL_USE_ARRAYFIRE && FL_ARRAYFIRE_USE_CUDA
+FL_REGISTER_TENSOR_EXTENSION(
+    CudnnAutogradExtension,
+    TensorBackendType::ArrayFire);
+  #endif // FL_USE_ARRAYFIRE && FL_ARRAYFIRE_USE_CUDA
+#endif // FL_USE_CUDNN
+
+} // namespace fl

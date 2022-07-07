@@ -11,11 +11,10 @@
 #include <string>
 #include <vector>
 
-#include <arrayfire.h>
-
 #include "flashlight/fl/common/Defines.h"
 #include "flashlight/fl/common/Types.h"
 #include "flashlight/fl/common/Utils.h"
+#include "flashlight/fl/tensor/TensorBase.h"
 
 namespace fl {
 
@@ -23,9 +22,20 @@ class Variable;
 
 namespace detail {
 
-af::array tileAs(const af::array& input, const af::dim4& rdims);
 
-af::array sumAs(const af::array& input, const af::dim4& rdims);
+struct AutogradPayload;
+
+Tensor tileAs(const Tensor& input, const Shape& rdims);
+
+Tensor sumAs(const Tensor& input, const Shape& rdims);
+
+/* Reshape a tensor to the dims it had before a reduction over the given axes.
+ * - This is a no-op if keepDims is true.
+ */
+Shape expandedShapeFromReducedDims(
+    const Tensor& input,
+    const std::vector<int>& axes,
+    bool keepDims = false);
 
 bool areVariableTypesEqual(const Variable& a, const Variable& b);
 
@@ -57,17 +67,24 @@ T adjustInputType(const T& in, const char* funcname) {
   if (funcs.find(std::string(funcname)) == funcs.end() &&
       optimLevel != OptimLevel::DEFAULT) {
     // Not in the excluded list - cast to f16
-    res = in.as(af::dtype::f16);
+    res = in.astype(fl::dtype::f16);
   } else {
     // Upcast to f32 only if we have an f16 input - otherwise, leave as is
-    if (in.type() == af::dtype::f16) {
-      res = in.as(af::dtype::f32);
+    if (in.type() == fl::dtype::f16) {
+      res = in.astype(fl::dtype::f32);
     } else {
       res = in;
     }
   }
 
   return res;
+}
+
+template <typename H, typename... T>
+std::shared_ptr<AutogradPayload> createAutogradPayload(H head, T... tail) {
+  return (head.isCalcGrad() || ... || tail.isCalcGrad())
+      ? std::make_shared<AutogradPayload>()
+      : nullptr;
 }
 
 } // namespace detail
@@ -379,10 +396,11 @@ Variable min(const Variable& lhs, const double& rhs);
 Variable min(const double& lhs, const Variable& rhs);
 
 /**
- * Returns a tensor that is a transposed version of a Variable. The first two
- * dimensions are swapped.
+ * Returns a tensor that is a transposed version of a Variable. Reorders the
+ * input based on the shape of the input dimensions. If left empty, transposes
+ * over all dimensinos (reverses all dimensions).
  */
-Variable transpose(const Variable& input);
+Variable transpose(const Variable& input, const Shape& dims = {});
 
 /**
  * Repeats the tensor `input` along certain dimensions so as to match the shape
@@ -396,7 +414,7 @@ Variable tileAs(const Variable& input, const Variable& reference);
  * in the descriptor `rdims`. The dimensions to be repeated along are
  * automatically inferred.
  */
-Variable tileAs(const Variable& input, const af::dim4& rdims);
+Variable tileAs(const Variable& input, const Shape& rdims);
 
 /**
  * Sums up the tensor `input` along certain dimensions so as to match the shape
@@ -411,7 +429,7 @@ Variable sumAs(const Variable& input, const Variable& reference);
  * automatically inferred. Note that after summation, the shape of those
  * dimensions will be 1.
  */
-Variable sumAs(const Variable& input, const af::dim4& rdims);
+Variable sumAs(const Variable& input, const Shape& rdims);
 
 /**
  * Concatenates Variables along a specific dimension. The shape of input
@@ -427,7 +445,7 @@ Variable concatenate(const std::vector<Variable>& concatInputs, int dim);
  * divisible, last chunk of smaller splitSize will be included.
  * @param dim dimension along which to split the Variable
  */
-std::vector<Variable> split(const Variable& input, dim_t splitSize, int dim);
+std::vector<Variable> split(const Variable& input, long splitSize, int dim);
 
 /**
  * Splits a Variable into smaller chunks.
@@ -437,13 +455,13 @@ std::vector<Variable> split(const Variable& input, dim_t splitSize, int dim);
  * @param dim dimension along which to split the Variable
  */
 std::vector<Variable>
-split(const Variable& input, const std::vector<dim_t>& splitSizes, int dim);
+split(const Variable& input, const std::vector<long>& splitSizes, int dim);
 
 /**
  * Repeats the tensor `input` along specific dimensions. The number of
  * repetition along each dimension is specified in descriptor `dims`.
  */
-Variable tile(const Variable& input, const af::dim4& dims);
+Variable tile(const Variable& input, const Shape& dims);
 
 /**
  * Repeats the tensor `input` along specific dimensions. The number of
@@ -455,34 +473,43 @@ Variable tile(const Variable& input, const af::dim4& dims);
  * arithmetic.
  */
 Variable
-tile(const Variable& input, const af::dim4& dims, const af::dtype precision);
+tile(const Variable& input, const Shape& dims, const fl::dtype precision);
 
 /**
  * Sums up the tensors `input` along dimensions specified in descriptor `axes`.
  * If `axes` has size greater than 1, reduce over all of them.
  */
-Variable sum(const Variable& input, const std::vector<int>& axes);
+Variable
+sum(const Variable& input, const std::vector<int>& axes, bool keepDims = false);
 
 /**
  * Computes the mean of the tensor `input` along dimensions specified in
  * descriptor `axes`. If `axes` has size greater than 1, reduce over all of
  * them.
  */
-Variable mean(const Variable& input, const std::vector<int>& axes);
+Variable mean(
+    const Variable& input,
+    const std::vector<int>& axes,
+    bool keepDims = false);
 
 /**
  * Lp-norm computation, reduced over specified dimensions.
+ *
  * @param input tensor on which the Lp norm is going to be computed.
  * @param p the p value of the Lp norm.
  * @param axes dimensions over which the reduction is performed.
  */
-Variable
-norm(const Variable& input, const std::vector<int>& axes, double p = 2);
+Variable norm(
+    const Variable& input,
+    const std::vector<int>& axes,
+    double p = 2,
+    bool keepDims = false);
 
 /**
- * Lp norm normalization, reduced over specified dimensions.
+ * Lp norm normalization of values across the given dimensions.
+ *
  * @param input the tensor to be normalized.
- * @param axes dimensions over which the reduction is performed.
+ * @param axes dimensions over which values are normalized.
  * @param p the p value of the Lp norm.
  * @param eps clamping value to avoid overflows.
  */
@@ -502,11 +529,13 @@ Variable normalize(
  * versions >= 3.7.0, if `isbiased` is `true` the variance computation uses
  * sample variance; if `false`, population variance is used. For versions of
  * ArrayFire before v3.7.0, the reverse is true.
+ * TODO:{fl::Tensor} -- make this behavior consistent
  */
 Variable var(
     const Variable& input,
     const std::vector<int>& axes,
-    const bool isbiased = false);
+    const bool isbiased = false,
+    bool keepDims = false);
 
 /**
  * Conducts matrix-matrix multiplication on two Variables. This is a batched
@@ -555,18 +584,13 @@ Variable flat(const Variable& input);
  * Modifies the input dimensions without changing the data order. The shape of
  * the output Variable is specified in descriptor `dims`.
  */
-Variable moddims(const Variable& input, const af::dim4& dims);
+Variable moddims(const Variable& input, const Shape& dims);
 
 /**
  * Exchanges data of an array such that the requested change in dimension is
  * satisfied. The linear ordering of data within the array is preserved.
  */
-Variable reorder(
-    const Variable& input,
-    const int dim0,
-    const int dim1,
-    const int dim2 = 2,
-    const int dim3 = 3);
+Variable reorder(const Variable& input, const Shape& shape);
 
 /**
  * Applies a linear transformation to the input Variable:
@@ -619,6 +643,8 @@ linear(const Variable& input, const Variable& weight, const Variable& bias);
  * @param dy dilation along the second kernel dimension. A dilation of 1
  * is equivalent to a standard convolution along this axis.
  * @param groups number of filter groups
+ * @param benchmarks [optional] a `ConvBenchmarks` instance to use to
+ * dynamically benchmark configuration attributes for computations.
  * @return a Variable with shape [\f$X_{out}\f$, \f$Y_{out}\f$, \f$C_{out}\f$,
  * \f$N\f$]]
  */
@@ -978,28 +1004,6 @@ Variable multiheadAttention(
     const int32_t nHeads,
     const double pDropout,
     const int32_t offset = 0);
-
-/**
- * This function computes the gradient of an indexing operator
- * when the af::index variable is an array (advanced indexing)
- * @param inp The input Variable which is the gradient of output of index
- * operator
- * @param idxStart The starting index of each dimension of index operator
- * @param idxEnd The ending index of each dimension of index operator
- * @param outDims The dimensions of output Variable which is the input of index
- * oeprator
- * @param idxArr The pointer to the advanced index of every dimension of index
- * operator
- * @param out The output Varible which is the gradient of input of index
- * operator
- */
-void gradAdvancedIndex(
-    const Variable& inp,
-    const af::dim4& idxStart,
-    const af::dim4& idxEnd,
-    const af::dim4& outDims,
-    const std::vector<af::array>& idxArr,
-    Variable& out);
 
 /** @} */
 

@@ -98,18 +98,18 @@ Variable conv2d(
 
   /********************************* Forward *******************************/
   // Create memory dims
-  memory::dims mInputDims =
-      detail::convertAfToDnnlDims({input.dims(kIOBatchSizeIdx),
-                                   input.dims(kIOChannelSizeIdx),
-                                   input.dims(kHIdx),
-                                   input.dims(kWIdx)});
+  memory::dims mInputDims = detail::convertAfToDnnlDims(
+      {input.dims(kIOBatchSizeIdx),
+       input.dims(kIOChannelSizeIdx),
+       input.dims(kHIdx),
+       input.dims(kWIdx)});
   memory::dims mWeightDims;
   if (groups == 1) {
-    mWeightDims =
-        detail::convertAfToDnnlDims({weights.dims(kWeightOutputChannelSizeIdx),
-                                     input.dims(kIOChannelSizeIdx),
-                                     weights.dims(kHIdx),
-                                     weights.dims(kWIdx)});
+    mWeightDims = detail::convertAfToDnnlDims(
+        {weights.dims(kWeightOutputChannelSizeIdx),
+         input.dims(kIOChannelSizeIdx),
+         weights.dims(kHIdx),
+         weights.dims(kWIdx)});
   } else {
     mWeightDims = detail::convertAfToDnnlDims(
         {groups,
@@ -118,11 +118,11 @@ Variable conv2d(
          weights.dims(kHIdx),
          weights.dims(kWIdx)});
   }
-  memory::dims mOutputDims =
-      detail::convertAfToDnnlDims({input.dims(kIOBatchSizeIdx),
-                                   weights.dims(kWeightOutputChannelSizeIdx),
-                                   output.dims(kHIdx),
-                                   output.dims(kWIdx)});
+  memory::dims mOutputDims = detail::convertAfToDnnlDims(
+      {input.dims(kIOBatchSizeIdx),
+       weights.dims(kWeightOutputChannelSizeIdx),
+       output.dims(kHIdx),
+       output.dims(kWIdx)});
   memory::dims mBiasDims =
       detail::convertAfToDnnlDims({weights.dims(kWeightOutputChannelSizeIdx)});
   memory::dims mStrideDims = {sy, sx};
@@ -230,8 +230,9 @@ Variable conv2d(
   // Add output reordering if needed
   if (outputMemory != outputMemInit.getMemory()) {
     network.push_back(dnnl::reorder(outputMemory, outputMemInit.getMemory()));
-    fwdArgs.push_back({{DNNL_ARG_FROM, outputMemory},
-                       {DNNL_ARG_TO, outputMemInit.getMemory()}});
+    fwdArgs.push_back(
+        {{DNNL_ARG_FROM, outputMemory},
+         {DNNL_ARG_TO, outputMemInit.getMemory()}});
   }
 
   // Run
@@ -319,17 +320,19 @@ Variable conv2d(
       auto convBwdData =
           std::make_shared<convolution_backward_data>(*bwdDataPrimDesc);
 
-      bwdDataArgs.push_back({{DNNL_ARG_DIFF_SRC, gradInputMemory},
-                             {DNNL_ARG_WEIGHTS, weightsMemoryBackwards},
-                             {DNNL_ARG_DIFF_DST, gradOutputMemory}});
+      bwdDataArgs.push_back(
+          {{DNNL_ARG_DIFF_SRC, gradInputMemory},
+           {DNNL_ARG_WEIGHTS, weightsMemoryBackwards},
+           {DNNL_ARG_DIFF_DST, gradOutputMemory}});
       networkBackwards.push_back(*convBwdData);
 
       // Reorder the output (which is gradInput here) if necessary
       if (gradInputMemory != gradInputMemInit.getMemory()) {
         networkBackwards.push_back(
             dnnl::reorder(gradInputMemory, gradInputMemInit.getMemory()));
-        bwdDataArgs.push_back({{DNNL_ARG_FROM, gradInputMemory},
-                               {DNNL_ARG_TO, gradInputMemInit.getMemory()}});
+        bwdDataArgs.push_back(
+            {{DNNL_ARG_FROM, gradInputMemory},
+             {DNNL_ARG_TO, gradInputMemInit.getMemory()}});
       }
 
       detail::executeNetwork(networkBackwards, bwdDataArgs);

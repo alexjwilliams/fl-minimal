@@ -12,10 +12,9 @@
 #include <memory>
 #include <vector>
 
-#include <arrayfire.h>
-
 #include "flashlight/fl/common/Defines.h"
 #include "flashlight/fl/common/Serialization.h"
+#include "flashlight/fl/tensor/TensorBase.h"
 
 namespace fl {
 
@@ -40,20 +39,20 @@ namespace fl {
  * Example :
  *
  * \code{.cpp}
- * fl::Variable aVar(af::randu(2), true); // Creates a variable
- * af::print("aVar", aVar.array());
+ * fl::Variable aVar(fl::rand({2}), true); // Creates a variable
+ * std::cout << "aVar" << aVar.tensor());
  * // aVar
  * // [2 1 1 1]
  * //     0.6010
  * //     0.0278
  * auto bVar = 1.0 + log(aVar); // Perform some arithmetic operations
  * bVar.backward(); // Perform backward pass to compute the gradients
- * af::print("bVar Grad", bVar.grad().array());
+ * std::cout << "bVar Grad" << bVar.grad().tensor());
  * // bVar Grad
  * // [2 1 1 1]
  * //    1.0000
  * //    1.0000
- * af::print("aVar Grad", aVar.grad().array());
+ * std::cout << "aVar Grad" << aVar.grad().tensor());
  * // aVar Grad
  * // [2 1 1 1]
  * //    1.6640
@@ -74,54 +73,56 @@ class Variable {
   Variable() = default;
 
   /**
-   * Creates a Variable which wraps the array specified
-   * @param[in] data array to be stored in the Variable
+   * Creates a Variable which wraps the specified Tensor
+   * @param[in] data Tensor to be stored in the Variable
    * @param[in] calcGrad specifies whether to the gradient is required for this
    * Variable
    */
-  Variable(af::array data, bool calcGrad);
+  Variable(Tensor data, bool calcGrad);
 
   /**
-   * Creates a Variable which wraps the array and inputs specified
-   * @param[in] data array to the stored in the Variable
+   * Creates a Variable which wraps the specified Tensor and inputs
+   * @param[in] data Tensor to the stored in the Variable
    * @param[in] inputs a vector specifying inputs for this Variable
    * @param[in] gradFunc function specifying how to calculate gradient of the
    * input Variables
    */
-  Variable(af::array data, std::vector<Variable> inputs, GradFunc gradFunc);
+  Variable(Tensor data, std::vector<Variable> inputs, GradFunc gradFunc);
+
+  Variable operator()(const std::vector<Index>& indices) const;
 
   /**
-   * Indexing operator on the Arrayfire Array wrapped by the Variable
-   * @param[in] s0 sequence of indices along first dimension
-   * @param[in] s1 sequence of indices along second dimension
-   * @param[in] s2 sequence of indices along third dimension
-   * @param[in] s3 sequence of indices along fourth dimension
-   * @param[in] unique boolean to specify whether all dimensions contain unique
-   * indices
+   * Indexing operator on a flattened Variable.
+   * @param[in] indices a variable number of indices.
    * @return Variable storing the result after indexing operation
    */
-  Variable operator()(
-      const af::index& s0,
-      const af::index& s1 = af::span,
-      const af::index& s2 = af::span,
-      const af::index& s3 = af::span,
-      bool unique = false) const;
+  template <typename... Ts>
+  Variable operator()(const Ts&... args) const {
+    std::vector<Index> indices{{args...}};
+    return this->operator()(indices);
+  }
 
   /**
-   * @return a reference to the underlying Arrayfire array.
+   * Indexing operator on a flattened Variable.
+   * @param[in] index index with which to index the flattened tensor
+   * @return Variable storing the result after indexing operation
    */
-  af::array& array() const;
+  Variable flat(const fl::Index& index) const;
+
+  /**
+   * @return a reference to the underlying Flashlight Tensor.
+   */
+  Tensor& tensor() const;
 
   /**
    * Creates a new variable based on the current variable whose type will be
-   * adjusted based on the input type. Unlike `inPlaceCast`, `as` does not
-   * change the current variable.
+   * adjusted based on the input type.
    *
    * @param[in] type target data type
    *
    * @return returns the casted variable.
    */
-  Variable as(af::dtype type) const;
+  Variable astype(fl::dtype type) const;
 
   /**
    * @return a reference to the underlying gradient Variable.
@@ -141,37 +142,38 @@ class Variable {
   /**
    * Returns the dimension of the array wrapped by the Variable
    */
-  af::dim4 dims() const;
+  Shape shape() const;
 
   /**
    * Returns whether the array wrapped by the Variable is empty
    */
-  bool isempty() const;
+  bool isEmpty() const;
 
   /**
    * Returns whether the array wrapped by the Variable is contiguous in memory
    * in C order.
    */
-  bool isLinear() const;
+  bool isContiguous() const;
 
   /**
    * Returns a Variable with contiguous array containing the same data as self
    * array.
    */
-  Variable linear() const;
+  Variable asContiguous() const;
 
   /**
-   * Returns the type of the array wrapped by the Variable
+   * Returns the type of the `Tensor` wrapped by the Variable
    * (e.g. f32 for float, f64 for double).
-   * Full list: http://arrayfire.org/docs/defines_8h.htm (search dtype)
+   *
+   * See `fl/tensor/Types.h`.
    */
-  af::dtype type() const;
+  fl::dtype type() const;
 
   /**
    * Returns the total number of elements stored in array wrapped by the
    * Variable
    */
-  dim_t elements() const;
+  Dim elements() const;
 
   /**
    * Returns the total number of bytes stored in array wrapped by the
@@ -182,12 +184,12 @@ class Variable {
   /**
    * Returns the number of dimension of array wrapped by the Variable
    */
-  unsigned numdims() const;
+  unsigned ndim() const;
 
   /**
    * Returns the dimension of array wrapped by the Variable
    */
-  dim_t dims(unsigned dim) const;
+  Dim dim(unsigned dim) const;
 
   /**
    * Evaluates any expressions in the array wrapped by the Variable
@@ -196,11 +198,11 @@ class Variable {
 
   /**
    * Copies the array to the host and return the pointer.
-   * Must eventually be freed with `af::freeHost()`.
+   * Must eventually be freed manually via `free` or a related call.
    */
   template <typename T>
   T* host() const {
-    return array().host<T>();
+    return tensor().host<T>();
   }
 
   /**
@@ -208,7 +210,7 @@ class Variable {
    */
   template <typename T>
   void host(T* ptr) const {
-    array().host(ptr);
+    tensor().host(ptr);
   }
 
   /**
@@ -216,7 +218,7 @@ class Variable {
    */
   template <typename T>
   T scalar() const {
-    return array().scalar<T>();
+    return tensor().scalar<T>();
   }
 
   /**
@@ -267,63 +269,6 @@ class Variable {
   void backward(bool retainGraph = false);
 
   /**
-   * Return a column from an array based on `index`. This can
-   * also be seen as the result of doing
-   * `input(af::span, index, af::span, af::span)`
-   * @param[in] index index of the row
-   * @return Variable storing the result
-   */
-  Variable col(int index) const;
-
-  /**
-   * Returns a sequence of columns from an array based on `first` and `last`
-   * indices. This can also be seen as the result of doing
-   * `input(af::span, af::seq(first, last), af::span, af::span)`
-   * @param[in] first start index of the rows
-   * @param[in] last end index of the rows
-   * @return Variable storing the result
-   */
-  Variable cols(int first, int last) const;
-
-  /**
-   * Returns a row from an array based on `index`. This can
-   * also be seen as the result of doing
-   * `input(index, af::span, af::span, af::span)`
-   * @param[in] index index of the slice
-   * @return Variable storing the result
-   */
-  Variable row(int index) const;
-
-  /**
-   * Returns a sequence of rows from an array based on `first` and `last`
-   * indices. This can also be seen as the result of doing
-   * `input(af::seq(first, last), af::span, af::span, af::span)`
-   * @param[in] first start index of the rows
-   * @param[in] last end index of the rows
-   * @return Variable storing the result
-   */
-  Variable rows(int first, int last) const;
-
-  /**
-   * Return slice in volume from an array based on `index`. This can
-   * also be seen as the result of doing
-   * `input(af::span, af::span, index, af::span)`
-   * @param[in] index index of the slice
-   * @return Variable storing the result
-   */
-  Variable slice(int index) const;
-
-  /**
-   * Return slices in volume from an array based on `first` and `last` indices.
-   * This can also be seen as the result of doing `input(af::span, af::span,
-   * af::seq(first, last), af::span)`
-   * @param[in] first start index of the slices
-   * @param[in] last end index of the slices
-   * @return Variable storing the result
-   */
-  Variable slices(int first, int last) const;
-
-  /**
    * Returns a copy of this variable after removing its underlying array.
    * The new Variable is used to store the inputs for a Variable
    * which doesn't need the output.
@@ -358,7 +303,7 @@ class Variable {
 
   struct SharedData {
     /// Array wrapped by this Variable
-    af::array data;
+    Tensor data;
 
     FL_SAVE_LOAD(data)
   };
