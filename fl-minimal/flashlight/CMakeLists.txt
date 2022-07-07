@@ -48,27 +48,7 @@ include(InternalUtils)
 option(FL_BUILD_TESTS "Build tests" ON)
 option(FL_BUILD_STANDALONE "Build standalone installation" ON)
 
-# Flashlight backend
-set(FL_BACKEND "CUDA" CACHE STRING "Backend with which to build flashlight")
-# Select from exactly one backend
-set_property(CACHE FL_BACKEND PROPERTY STRINGS CPU CUDA OPENCL)
-# Map to flags
-set(FL_USE_CPU OFF)
-set(FL_USE_CUDA OFF)
-if (FL_BACKEND STREQUAL "CPU")
-  set(FL_USE_CPU ON)
-elseif (FL_BACKEND STREQUAL "CUDA")
-  set(FL_USE_CUDA ON)
-else ()
-  message(FATAL_ERROR "Invalid FL_BACKEND specified")
-endif ()
 
-# Profiling
-# TODO: for now, profiling is only enabled with the CUDA backend -
-# can enable other profiling once an implementation is in place
-cmake_dependent_option(FL_BUILD_PROFILING
-  "Enable profiling with Flashlight" OFF
-  "FL_USE_CUDA" OFF)
 
 # List of installable targets
 set(INSTALLABLE_TARGETS)
@@ -76,19 +56,38 @@ set(INSTALLABLE_TARGETS)
 set(FL_ROOT_DIR ${PROJECT_SOURCE_DIR}/flashlight)
 set(FL_BUILD_BINARY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
 
+# ]--- Backend Options
+# TODO: change these to FL_BACKEND_* to be consistent with preproc
+option(FL_USE_CUDA   "Build CUDA support for Flashlight backends" OFF)
+option(FL_USE_CPU    "Build CPU support for Flashlight backends"  OFF)
+option(FL_USE_OPENCL "Build OpenCL support for Flashlight backends" OFF)
+
+# -------------------- Locate Backend-specific Dependencies --------------------
+find_package(CUDA 9.2 QUIET) # CUDA 9.2 is required for >= ArrayFire 3.6.1
+if (CUDA_FOUND)
+  message(STATUS "CUDA found (library: ${CUDA_LIBRARIES} include: ${CUDA_INCLUDE_DIRS})")
+endif()
+
+find_package(OpenCL)
+if (OpenCL_FOUND)
+  message(STATUS "OpenCL found (library: ${OpenCL_LIBRARIES} include: ${OpenCL_INCLUDE_DIRS})")
+endif()
+
 # CUDA/nvcc setup
-if (FL_USE_CUDA)
+if (CUDA_FOUND)
   enable_language(CUDA)
   # The CUDA standard is still C++14 to enable interopability with
   # slightly older and still well-supported versions of CUDA/nvcc
-  # (e.g. CUDA < 11).
+  # (e.g. CUDA < 11). This will be bumped to 17 once CUDA 11 is
+  # required.
   set(CMAKE_CUDA_STANDARD 14)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
   include(${CMAKE_MODULE_PATH}/CUDAUtils.cmake)
   set_cuda_arch_nvcc_flags()
 
-  # remove me? add -fPIC to nvcc flags if needed
-  if (CMAKE_POSITION_INDEPENDENT_CODE)
+  # remove me when upgrading CMake versions
+  # (i.e. add -fPIC to nvcc flags if needed)
+  if (FL_LIBRARIES_BUILD_FOR_PYTHON OR CMAKE_POSITION_INDEPENDENT_CODE)
     cuda_enable_position_independent_code()
   endif ()
 endif()
@@ -149,33 +148,32 @@ if (FL_BUILD_CORE)
   endif()
   setup_install_find_module(${CMAKE_MODULE_PATH}/Findcereal.cmake)
 
-  # -------------------- Locate Backend-specific Dependencies --------------------
-  # TODO: rather than conditionally searching for backend-specific dependencies,
-  # always search for all dependencies, and dynamically build all backends for
-  # which all required dependencies are found.
-
-  if (FL_USE_CUDA)
-     find_package(CUDA 9.2 QUIET) # CUDA 9.2 is required for >= ArrayFire 3.6.1
-     if (CUDA_FOUND)
-       message(STATUS "CUDA found (library: ${CUDA_LIBRARIES} include: ${CUDA_INCLUDE_DIRS})")
-     else()
-       message(STATUS "CUDA not found")
-       message(FATAL_ERROR "CUDA required to build CUDA backend")
-     endif()
-  endif()
-
   # ------------------------ flashlight Core ------------------------
   set(FL_CORE_DIR "${FL_ROOT_DIR}/fl")
   include(${FL_CORE_DIR}/CMakeLists.txt)
   list(APPEND INSTALLABLE_TARGETS flashlight)
   # flashlight core components keep their relative paths with respect to project
   setup_install_headers(${FL_CORE_DIR} ${FL_INSTALL_INC_DIR_HEADER_LOC})
+  # FL_USE_* variables are set in flashlight/fl/tensor/CMakeLists.txt based on
+  # backend registration
   target_compile_definitions(flashlight
     PUBLIC
     FL_BACKEND_CPU=$<BOOL:${FL_USE_CPU}>
     FL_BACKEND_CUDA=$<BOOL:${FL_USE_CUDA}>
+    FL_BACKEND_OPENCL=$<BOOL:${FL_USE_OPENCL}>
     FL_BUILD_PROFILING=$<BOOL:${FL_BUILD_PROFILING}>
     )
+
+  # Check external dependencies match used backend state. If we're required
+  # to link to a backend and it wasn't found, fatal.
+  if (FL_USE_CUDA AND NOT CUDA_FOUND)
+    message(FATAL_ERROR
+      "One or more tensor backends require CUDA to build. CUDA was not found.")
+  endif()
+  if (FL_USE_OPENCL AND NOT OpenCL_FOUND)
+    message(FATAL_ERROR
+      "One or more tensor backends require OpenCL to build. OpenCL was not found.")
+  endif()
 
 endif() # if FL_BUILD_CORE
 

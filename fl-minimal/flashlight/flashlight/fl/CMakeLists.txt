@@ -13,6 +13,8 @@ target_include_directories(
 )
 
 # -------------------------------- Components --------------------------------
+# Tensor -- resolve backends and compute runtimes first
+include(${FL_CORE_COMPONENT_SRC_DIR}/tensor/CMakeLists.txt)
 
 # Common
 include(${FL_CORE_COMPONENT_SRC_DIR}/common/CMakeLists.txt)
@@ -23,8 +25,6 @@ include(${FL_CORE_COMPONENT_SRC_DIR}/autograd/CMakeLists.txt)
 # Dataset
 include(${FL_CORE_COMPONENT_SRC_DIR}/dataset/CMakeLists.txt)
 
-# Memory
-include(${FL_CORE_COMPONENT_SRC_DIR}/memory/CMakeLists.txt)
 
 # NN
 include(${FL_CORE_COMPONENT_SRC_DIR}/nn/CMakeLists.txt)
@@ -32,8 +32,8 @@ include(${FL_CORE_COMPONENT_SRC_DIR}/nn/CMakeLists.txt)
 # Optim
 include(${FL_CORE_COMPONENT_SRC_DIR}/optim/CMakeLists.txt)
 
-# Tensor
-include(${FL_CORE_COMPONENT_SRC_DIR}/tensor/CMakeLists.txt)
+# Runtime
+include(${FL_CORE_COMPONENT_SRC_DIR}/runtime/CMakeLists.txt)
 
 # --------------------------- Configure Examples/Tests ---------------------------
 
